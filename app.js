@@ -75,23 +75,7 @@ const categories = [
   ["Morning Madness", "Start the day with strange wisdom.", "tiredSun"],
 ];
 
-const quotes = [
-  { id: 1, text: "You are tired, not finished.", category: "Dark Motivation", mood: "Medium Madness" },
-  { id: 2, text: "Keep going. Your plot twist is still loading.", category: "Dark Motivation", mood: "Tired but still trying" },
-  { id: 3, text: "Survive today. Become suspiciously powerful tomorrow.", category: "Dark Motivation", mood: "Full Moon Energy" },
-  { id: 4, text: "Your comeback does not need an announcement. Just arrive different.", category: "Dark Motivation", mood: "Comeback era" },
-  { id: 5, text: "Stay soft. Win anyway.", category: "Soft but Dangerous", mood: "Soft Strange" },
-  { id: 6, text: "Kindness is not permission to test the fences.", category: "Soft but Dangerous", mood: "Medium Madness" },
-  { id: 7, text: "Low battery. Big plans. Suspiciously good posture.", category: "Dead Inside, Still Trying", mood: "Medium Madness" },
-  { id: 8, text: "Resting is still part of the dramatic training montage.", category: "Dead Inside, Still Trying", mood: "Soft Strange" },
-  { id: 9, text: "Let the doubt watch. It clearly enjoys the show.", category: "Spite & Success", mood: "Full Moon Energy" },
-  { id: 10, text: "Some emails are just haunted paper with deadlines.", category: "Workplace Survival", mood: "Medium Madness" },
-  { id: 11, text: "This meeting could have been a respectful silence.", category: "Workplace Survival", mood: "Full Moon Energy" },
-  { id: 12, text: "Existence is odd. Have a snack and continue.", category: "Existential Nonsense", mood: "Soft Strange" },
-  { id: 13, text: "You are the plot twist. Try to act surprised.", category: "Existential Nonsense", mood: "Medium Madness" },
-  { id: 14, text: "Tiny smile. Enormous boundaries.", category: "Cute but Concerning", mood: "Soft Strange" },
-  { id: 15, text: "Wake up gently. Become alarming later.", category: "Morning Madness", mood: "Medium Madness" },
-];
+const quotes = window.SILENT_MADNESS_QUOTES;
 
 const cardPalettes = {
   "Hot Pink": { background: "#ff38ad", ink: "#050505", accent: "#ffdf28", logoFilter: "brightness(0)" },
@@ -99,6 +83,10 @@ const cardPalettes = {
   "Caution Yellow": { background: "#ffdf28", ink: "#050505", accent: "#f12f44", logoFilter: "brightness(0)" },
   "Electric Cyan": { background: "#43d7f5", ink: "#050505", accent: "#ff38ad", logoFilter: "brightness(0)" },
   "Midnight Black": { background: "#080808", ink: "#f8f5ec", accent: "#ff38ad", logoFilter: "none" },
+  "Oxblood": { background: "#3a0d18", ink: "#f8f5ec", accent: "#ff526c", logoFilter: "none" },
+  "Midnight Navy": { background: "#071b2c", ink: "#f8f5ec", accent: "#43d7f5", logoFilter: "none" },
+  "Haunted Forest": { background: "#10261b", ink: "#f8f5ec", accent: "#5cf04e", logoFilter: "none" },
+  "Deep Plum": { background: "#281129", ink: "#f8f5ec", accent: "#ff38ad", logoFilter: "none" },
   "Bone White": { background: "#f8f5ec", ink: "#050505", accent: "#f12f44", logoFilter: "brightness(0)" },
 };
 
@@ -134,6 +122,14 @@ const defaultState = {
     reminder: "Morning Madness",
     cardStyle: ["Neon Poster"],
   },
+  onboardingSelections: {
+    vibe: null,
+    level: null,
+    status: null,
+    goals: [],
+    reminder: null,
+    cardStyle: [],
+  },
   currentQuoteId: 1,
   savedIds: [5, 4, 10],
   sharedIds: [],
@@ -152,7 +148,7 @@ const defaultState = {
   reminderEnabled: true,
   selectedPlan: "Yearly Plan",
   trialStarted: false,
-  theme: "Neon",
+  theme: "Dark",
 };
 
 const app = document.querySelector("#app");
@@ -165,9 +161,20 @@ function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (!saved) return structuredClone(defaultState);
-    const merged = { ...defaultState, ...saved, profile: { ...defaultState.profile, ...saved.profile } };
+    const merged = {
+      ...defaultState,
+      ...saved,
+      profile: { ...defaultState.profile, ...saved.profile },
+      onboardingSelections: {
+        ...defaultState.onboardingSelections,
+        ...saved.onboardingSelections,
+      },
+    };
     merged.profile.goals = Array.isArray(merged.profile.goals) ? merged.profile.goals : [merged.profile.goals].filter(Boolean);
     merged.profile.cardStyle = Array.isArray(merged.profile.cardStyle) ? merged.profile.cardStyle : [merged.profile.cardStyle].filter(Boolean);
+    merged.onboardingSelections.goals = Array.isArray(merged.onboardingSelections.goals) ? merged.onboardingSelections.goals : [];
+    merged.onboardingSelections.cardStyle = Array.isArray(merged.onboardingSelections.cardStyle) ? merged.onboardingSelections.cardStyle : [];
+    if (!["Dark", "Light"].includes(merged.theme)) merged.theme = "Dark";
     if (!exportFormats[merged.createFormat]) merged.createFormat = "Instagram Post";
     return merged;
   } catch {
@@ -177,6 +184,11 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function applyInterfaceTheme() {
+  document.body.dataset.interface = state.theme.toLowerCase();
+  document.documentElement.style.colorScheme = state.theme === "Light" ? "light" : "dark";
 }
 
 function allQuotes() {
@@ -227,10 +239,11 @@ const iconColors = {
 };
 
 function stickerIcon(name, size = "md", accent = "pink") {
-  const color = iconColors[accent] || iconColors.pink;
-  const ink = iconColors.ink;
-  const bone = iconColors.bone;
-  const { red, green, yellow, cyan } = iconColors;
+  const interfaceColors = state.theme === "Light" ? { ...iconColors, green: "#b32655" } : iconColors;
+  const color = interfaceColors[accent] || interfaceColors.pink;
+  const ink = interfaceColors.ink;
+  const bone = interfaceColors.bone;
+  const { red, green, yellow, cyan } = interfaceColors;
   const paths = {
     moon: `<path fill="${color}" stroke="${ink}" stroke-width="3" d="M31 5c-8 2-13 9-12 17 1 9 9 15 18 13-5 5-14 7-21 3C7 34 4 24 8 15 12 7 22 3 31 5Z"/><path fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round" d="M15 21l3 1m7 3 3-1m-11 5c3 2 6 2 9 0"/>`,
     crackedHeart: `<path fill="${color}" stroke="${ink}" stroke-width="3" d="M24 39 8 24C-1 15 5 5 14 7c5 1 8 5 10 8 2-3 5-7 10-8 9-2 15 8 6 17L24 39Z"/><path fill="none" stroke="${ink}" stroke-width="3" d="m25 14-5 8 6 2-5 9"/><path fill="${bone}" stroke="${ink}" stroke-width="2" d="m12 22 3 4 3-4m12 1 3 4 3-4"/>`,
@@ -321,7 +334,8 @@ function optionCards(key, next, multiple = false) {
   return options[key]
     .map(
       ([title, text], index) => {
-        const selected = multiple ? state.profile[key].includes(title) : state.profile[key] === title;
+        const activeSelection = state.onboardingSelections[key];
+        const selected = multiple ? activeSelection.includes(title) : activeSelection === title;
         return `
         <button class="option-card accent-${(index % 4) + 1} ${selected ? "is-selected" : ""}"
           data-select-profile="${key}" data-value="${escapeHtml(title)}" data-next="${next}" data-multiple="${multiple}">
@@ -334,6 +348,7 @@ function optionCards(key, next, multiple = false) {
 }
 
 function onboardingScreen(key, back, next, progress, title, subtitle, multiple = false) {
+  const selectedCount = multiple ? state.onboardingSelections[key].length : 0;
   return `
     <section class="screen scrollable screen-enter">
       <button class="icon-btn" data-go="${back}" title="Back">${stickerIcon("back", "sm", "pink")}</button>
@@ -341,16 +356,19 @@ function onboardingScreen(key, back, next, progress, title, subtitle, multiple =
       <h2 class="headline" style="margin-top:18px">${title}</h2>
       <p class="subtext">${subtitle}${multiple ? " Choose as many as you like." : ""}</p>
       <div class="option-list" style="margin-top:18px">${optionCards(key, next, multiple)}</div>
-      ${multiple ? `<button class="primary-btn multi-continue" data-continue-multi="${key}" data-next="${next}" ${state.profile[key].length ? "" : "disabled"}>Continue with ${state.profile[key].length || 0} selected</button>` : ""}
+      ${multiple ? `<button class="primary-btn multi-continue" data-continue-multi="${key}" data-next="${next}" ${selectedCount ? "" : "disabled"}>Continue with ${selectedCount} selected</button>` : ""}
     </section>`;
 }
 
 function quoteCard(quote) {
+  const lengthClass = quote.text.length > 105 ? "quote-length-long" : quote.text.length > 75 ? "quote-length-medium" : "quote-length-short";
+  const colorIndex = ((Number(quote.id) - 1) % 7) + 1;
+  const colorClass = `quote-color-${colorIndex}`;
+  const contrastClass = colorIndex >= 4 ? "quote-card-dark" : "";
   return `
-    <div class="quote-card">
-      <div class="ornament">${stickerIcon("moon", "lg", "yellow")}</div>
+    <div class="quote-card ${lengthClass} ${colorClass} ${contrastClass}">
       <blockquote>${escapeHtml(quote.text)}</blockquote>
-      <div class="quote-meta"><span>${quote.category}</span><span>${quote.mood}</span><span>06 June 2026</span></div>
+      <img class="quote-card-logo" src="./assets/silent-madness-logo.png" alt="Silent Madness" />
     </div>`;
 }
 
@@ -368,7 +386,7 @@ function savedCards() {
   return list
     .map(
       (quote, index) => `
-        <article class="saved-card poster-${(index % 3) + 1}">
+        <article class="saved-card poster-${(index % 7) + 1} ${(index % 7) >= 3 ? "poster-dark" : ""}">
           <h3>“${escapeHtml(quote.text)}”</h3>
           <p>${quote.category} · Saved locally</p>
           <div class="saved-actions">
@@ -400,7 +418,7 @@ function categoryQuoteCards() {
     .filter((quote) => quote.category === state.selectedCategory)
     .map(
       (quote, index) => `
-        <article class="saved-card poster-${(index % 3) + 1}">
+        <article class="saved-card poster-${(index % 7) + 1} ${(index % 7) >= 3 ? "poster-dark" : ""}">
           <h3>“${escapeHtml(quote.text)}”</h3>
           <p>${quote.category} · ${quote.mood}</p>
           <div class="saved-actions">
@@ -426,15 +444,18 @@ function cardPreviewStyle() {
   return `--card-bg:${palette.background};--card-ink:${palette.ink};--card-accent:${palette.accent};--card-font:${font.css};--logo-filter:${palette.logoFilter}`;
 }
 
+function styleSlug(value) {
+  return value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 const templates = {
   welcome: () => `
     <section class="screen screen-enter">
       ${header()}
       <img class="welcome-logo" src="./assets/silent-madness-logo.png" alt="Silent Madness" />
-      <div class="hero-art"><div class="hero-sticker">${stickerIcon("skullBattery", "hero", "pink")}</div><div class="clipping"><span>Daily questionable wisdom</span><strong>LOUD HEART. QUIET CHAOS.</strong></div></div>
       <h2 class="headline welcome-headline">HI, HELLO.<br><em>WELCOME</em><br><strong>TO THE MADNESS.</strong></h2>
       <p class="subtext">Daily quirky pep talks for soft hearts, sharp minds + questionable coping mechanisms.</p>
-      <button class="primary-btn push-bottom" data-go="vibe">LET'S GO, WEIRDO ${stickerIcon("flyingPaper", "button", "yellow")}</button>
+      <button class="primary-btn push-bottom" data-action="start-onboarding">LET'S GO, WEIRDO ${stickerIcon("flyingPaper", "button", "yellow")}</button>
     </section>`,
 
   vibe: () => onboardingScreen("vibe", "welcome", "level", 20, "WHAT FLAVOUR<br><em>OF MADNESS</em><br><strong>TODAY?</strong>", "Pick a vibe. We’ll bring the chaos."),
@@ -523,7 +544,6 @@ const templates = {
 
   create: () => {
     const preview = createPreviewQuote();
-    const mood = cardMoods[state.createMood] || cardMoods["Dark Motivation"];
     return `
       <section class="screen scrollable screen-enter">
         ${header("MAKE A LOUD CARD.")}
@@ -534,9 +554,10 @@ const templates = {
         <div class="step-panel"><p class="section-title" style="margin-top:0">4. Text Font</p><div class="font-grid">${Object.keys(cardFonts).map((name) => `<button class="font-choice ${state.createFont === name ? "active" : ""}" data-create-font="${name}" style="font-family:${cardFonts[name].css}">${name}</button>`).join("")}</div></div>
         <div class="step-panel"><p class="section-title" style="margin-top:0">5. Mood</p><div class="mood-grid">${Object.entries(cardMoods).map(([name, config]) => `<button class="mood-choice ${state.createMood === name ? "active" : ""}" data-create-mood="${name}">${stickerIcon(config.icon, "button", config.accent)}<span>${name}</span></button>`).join("")}</div></div>
         <div class="step-panel"><p class="section-title" style="margin-top:0">6. Preview Ratio</p><div class="format-grid">${Object.entries(exportFormats).map(([name, format]) => `<button class="chip ${state.createFormat === name ? "active" : ""}" data-create-format="${name}">${format.label}</button>`).join("")}</div></div>
-        <div class="step-panel"><p class="section-title" style="margin-top:0">7. Preview</p><div class="preview-stage preview-${state.createFormat.toLowerCase().replaceAll(" ", "-")}"><div class="card-preview" style="${cardPreviewStyle()}"><span class="preview-dot">${stickerIcon(mood.icon, "lg", mood.accent)}</span><strong>${escapeHtml(preview.text)}</strong><span class="preview-mood">${state.createMood}</span><img class="brand-stamp" src="./assets/silent-madness-logo.png" alt="Silent Madness" /></div></div></div>
-        <button class="primary-btn save-all-btn" data-action="download-all">${stickerIcon("flyingPaper", "button", "yellow")} Save All 4 Formats</button>
-        <div class="button-row" style="margin-top:10px"><button class="secondary-btn" data-action="download-card">Save Current Ratio</button><button class="secondary-btn" data-action="share-preview">Share</button></div>
+        <div class="step-panel"><p class="section-title" style="margin-top:0">7. Preview</p><div class="preview-stage preview-${state.createFormat.toLowerCase().replaceAll(" ", "-")}"><div class="card-preview theme-${styleSlug(state.createStyle)}" style="${cardPreviewStyle()}"><span class="theme-decoration theme-decoration-a" aria-hidden="true"></span><span class="theme-decoration theme-decoration-b" aria-hidden="true"></span><strong>${escapeHtml(preview.text)}</strong><img class="brand-stamp" src="./assets/silent-madness-logo.png" alt="Silent Madness" /></div></div></div>
+        <button class="primary-btn save-all-btn" data-action="save-to-photos">${stickerIcon("flyingPaper", "button", "yellow")} Save to Photos</button>
+        <p class="small-muted save-format-note">${exportFormats[state.createFormat].label} selected · On phone, choose “Save Image” when the share sheet opens.</p>
+        <button class="secondary-btn" data-action="share-preview" style="margin-top:10px">Share Quote</button>
         ${bottomNav("create")}
       </section>`;
   },
@@ -545,7 +566,7 @@ const templates = {
     <section class="screen scrollable screen-enter">
       ${header("YOUR LITTLE MUSEUM")}
       <p class="eyebrow">${stickerIcon("coffinArchive", "benefit", "green")} THINGS THAT ALMOST SAID IT FOR YOU</p>
-      <div class="tabs" style="margin:16px 0">${["All", "Dark Motivation", "Soft but Dangerous", "Workplace", "Shared", "Custom"].map((item) => `<button class="tab ${state.savedFilter === item ? "active" : ""}" data-saved-filter="${item}">${item}</button>`).join("")}</div>
+      <div class="saved-filter-bar"><div class="tabs">${["All", "Dark Motivation", "Soft but Dangerous", "Workplace", "Shared", "Custom"].map((item) => `<button class="tab ${state.savedFilter === item ? "active" : ""}" data-saved-filter="${item}">${item}</button>`).join("")}</div></div>
       <div class="saved-list">${savedCards()}</div>
       ${bottomNav("saved")}
     </section>`,
@@ -553,12 +574,27 @@ const templates = {
   profile: () => `
     <section class="screen scrollable screen-enter">
       ${header("HELLO, WEIRDO.")}
-      <div class="profile-card" style="margin-top:15px"><span class="badge">${state.trialStarted ? `${state.selectedPlan} Demo` : "Free Profile"}</span><div class="profile-sticker">${stickerIcon("skullBattery", "hero", "yellow")}</div><h2 class="profile-title">DEAD INSIDE,<br><em>STILL TRYING.</em></h2><p class="subtext">${state.profile.status}. Still showing up.</p></div>
+      <div class="profile-card profile-identity-card" style="margin-top:15px">
+        <span class="badge profile-plan-badge">${state.trialStarted ? `${state.selectedPlan} Demo` : "Free Profile"}</span>
+        <div class="profile-identity">
+          <div class="profile-sticker">${stickerIcon("skullBattery", "hero", "yellow")}</div>
+          <div class="profile-copy">
+            <h2 class="profile-title">DEAD INSIDE,<br><em>STILL TRYING.</em></h2>
+            <p class="subtext">${state.profile.status}. Still showing up.</p>
+          </div>
+        </div>
+      </div>
       <div class="preference-grid"><div class="pref"><span>Quote Vibe</span><strong>${state.profile.vibe}</strong></div><div class="pref"><span>Madness Level</span><strong>${state.profile.level}</strong></div><div class="pref"><span>Quote Goals</span><strong>${state.profile.goals.length} selected</strong></div><div class="pref"><span>Card Styles</span><strong>${state.profile.cardStyle.length} selected</strong></div></div>
+      <div class="appearance-panel">
+        <p class="section-title">Interface Colour</p>
+        <div class="appearance-options">
+          <button class="appearance-choice ${state.theme === "Dark" ? "active" : ""}" data-interface-theme="Dark"><span class="appearance-preview appearance-preview-dark"></span><strong>Dark</strong><small>Midnight neon</small></button>
+          <button class="appearance-choice ${state.theme === "Light" ? "active" : ""}" data-interface-theme="Light"><span class="appearance-preview appearance-preview-light"></span><strong>Light</strong><small>Bone paper neon</small></button>
+        </div>
+      </div>
       <div class="settings-list">
         <button class="setting-row" data-go="vibe">${stickerIcon("crackedMirror", "setting", "cyan")}<span>Edit My Madness Profile</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-action="toggle-reminder">${stickerIcon("batAlarm", "setting", "green")}<span>Notifications</span><span class="switch ${state.reminderEnabled ? "on" : ""}"></span></button>
-        <button class="setting-row" data-action="toggle-theme">${stickerIcon("confusedEye", "setting", "pink")}<span>Appearance: ${state.theme}</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-go="paywall">${stickerIcon("trophy", "setting", "yellow")}<span>Subscription</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-action="restore">${stickerIcon("coffinArchive", "setting", "red")}<span>Restore Purchases</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-action="privacy">${stickerIcon("confusedEye", "setting", "cyan")}<span>Privacy Policy</span>${stickerIcon("chevron", "button", "pink")}</button>
@@ -576,6 +612,7 @@ function renderNav() {
 
 function render(id = currentScreen) {
   currentScreen = templates[id] ? id : "today";
+  applyInterfaceTheme();
   app.innerHTML = templates[currentScreen]();
   renderNav();
 }
@@ -622,31 +659,97 @@ async function buildCardCanvas(formatName) {
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
+  const theme = state.createStyle;
+  const unit = Math.min(width, height);
+  let textX = width / 2;
+  let textY = height * 0.48;
+  let maxTextWidth = width * (width > height ? 0.7 : 0.78);
+  let textAlign = "center";
+  let themeFont = font.canvas;
+  let uppercase = state.createFont === "Poster Loud";
+
   ctx.fillStyle = palette.background;
   ctx.fillRect(0, 0, width, height);
 
   const inset = Math.max(38, Math.min(width, height) * 0.045);
   ctx.strokeStyle = palette.ink;
-  ctx.lineWidth = Math.max(10, Math.min(width, height) * 0.014);
-  ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
-  ctx.fillStyle = palette.accent;
-  ctx.beginPath();
-  ctx.arc(width / 2, height * 0.18, Math.min(width, height) * 0.06, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = palette.ink;
-  ctx.lineWidth = Math.max(7, Math.min(width, height) * 0.008);
-  ctx.stroke();
+  ctx.lineWidth = Math.max(8, unit * 0.012);
+
+  if (theme === "Neon Poster") {
+    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+    ctx.fillStyle = palette.accent;
+    ctx.fillRect(width * 0.78, height * 0.08, unit * 0.055, unit * 0.055);
+    ctx.beginPath();
+    ctx.arc(width / 2, height * 0.18, unit * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (theme === "Dark Vintage") {
+    const vignette = ctx.createRadialGradient(width / 2, height / 2, unit * 0.15, width / 2, height / 2, Math.max(width, height) * 0.7);
+    vignette.addColorStop(0, "rgba(90,65,35,0.08)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.5)");
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
+    ctx.lineWidth = Math.max(5, unit * 0.007);
+    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+    ctx.strokeRect(inset * 1.35, inset * 1.35, width - inset * 2.7, height - inset * 2.7);
+    themeFont = "Georgia, serif";
+    uppercase = false;
+  } else if (theme === "Gothic Newspaper") {
+    ctx.fillStyle = palette.ink;
+    ctx.fillRect(0, height * 0.13, width, Math.max(4, unit * 0.007));
+    ctx.fillRect(0, height * 0.19, width, Math.max(2, unit * 0.003));
+    ctx.textAlign = "center";
+    ctx.font = `900 ${Math.round(unit * 0.035)}px Georgia, serif`;
+    ctx.fillText("THE SILENT MADNESS GAZETTE", width / 2, height * 0.165);
+    textX = width * 0.12;
+    textY = height * 0.48;
+    textAlign = "left";
+    maxTextWidth = width * 0.76;
+    themeFont = "Georgia, serif";
+    uppercase = false;
+  } else if (theme === "Minimal Black and White") {
+    ctx.lineWidth = Math.max(3, unit * 0.004);
+    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+    ctx.strokeRect(inset * 1.3, inset * 1.3, width - inset * 2.6, height - inset * 2.6);
+    themeFont = "Arial, sans-serif";
+    uppercase = false;
+    maxTextWidth = width * 0.68;
+  } else if (theme === "Cute but Concerning") {
+    ctx.lineWidth = Math.max(8, unit * 0.012);
+    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+    [[0.12, 0.14, 0.025], [0.86, 0.18, 0.018], [0.16, 0.82, 0.03], [0.84, 0.78, 0.022]].forEach(([x, y, radius]) => {
+      ctx.fillStyle = palette.accent;
+      ctx.beginPath();
+      ctx.arc(width * x, height * y, unit * radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
+    themeFont = "'Arial Rounded MT Bold', Arial, sans-serif";
+    uppercase = false;
+  } else {
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(-0.018);
+    ctx.translate(-width / 2, -height / 2);
+    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+    ctx.fillStyle = palette.accent;
+    ctx.globalAlpha = 0.72;
+    ctx.rotate(-0.08);
+    ctx.fillRect(width * 0.08, height * 0.07, width * 0.2, unit * 0.055);
+    ctx.restore();
+    themeFont = "'Arial Rounded MT Bold', Arial, sans-serif";
+    uppercase = false;
+  }
 
   ctx.fillStyle = palette.ink;
-  ctx.textAlign = "center";
+  ctx.textAlign = textAlign;
   ctx.textBaseline = "middle";
   const baseSize = Math.round(Math.min(width * 0.075, height * 0.1));
-  ctx.font = `${font.weight} ${baseSize}px ${font.canvas}`;
-  const displayText = state.createFont === "Poster Loud" ? quote.text.toUpperCase() : quote.text;
+  ctx.font = `${font.weight} ${baseSize}px ${themeFont}`;
+  const displayText = uppercase ? quote.text.toUpperCase() : quote.text;
   const words = displayText.split(" ");
   const lines = [];
   let line = "";
-  const maxTextWidth = width * (width > height ? 0.7 : 0.78);
   words.forEach((word) => {
     const test = `${line} ${word}`.trim();
     if (ctx.measureText(test).width > maxTextWidth && line) {
@@ -658,11 +761,9 @@ async function buildCardCanvas(formatName) {
   });
   lines.push(line);
   const lineHeight = baseSize * 1.05;
-  const startY = height * 0.48 - ((lines.length - 1) * lineHeight) / 2;
-  lines.forEach((text, index) => ctx.fillText(text, width / 2, startY + index * lineHeight));
+  const startY = textY - ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((text, index) => ctx.fillText(text, textX, startY + index * lineHeight));
 
-  ctx.font = `700 ${Math.round(Math.min(width, height) * 0.025)}px Arial, sans-serif`;
-  ctx.fillText(state.createMood.toUpperCase(), width / 2, height * 0.72);
   ctx.strokeStyle = palette.accent;
   ctx.lineWidth = Math.max(5, Math.min(width, height) * 0.006);
   ctx.beginPath();
@@ -708,28 +809,39 @@ function rememberCardDesign() {
   saveState();
 }
 
-async function triggerCardDownload(formatName) {
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Image could not be created.")), "image/png");
+  });
+}
+
+async function saveCardToPhotos() {
+  rememberCardDesign();
+  const formatName = state.createFormat;
   const canvas = await buildCardCanvas(formatName);
-  const link = document.createElement("a");
-  link.download = `silent-madness-${formatName.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}.png`;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
-}
+  const filename = `silent-madness-${formatName.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}.png`;
+  const blob = await canvasToBlob(canvas);
+  const file = new File([blob], filename, { type: "image/png" });
 
-async function downloadCard() {
-  rememberCardDesign();
-  await triggerCardDownload(state.createFormat);
-  showToast(`${exportFormats[state.createFormat].label} card downloaded.`);
-}
-
-async function downloadAllCards() {
-  rememberCardDesign();
-  showToast("Preparing all four platform sizes...");
-  for (const formatName of Object.keys(exportFormats)) {
-    await triggerCardDownload(formatName);
-    await new Promise((resolve) => setTimeout(resolve, 180));
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: "Silent Madness",
+        text: `${exportFormats[formatName].label} quote card`,
+      });
+      return;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+    }
   }
-  showToast("All four platform cards downloaded.");
+
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  showToast(`${exportFormats[formatName].label} image downloaded.`);
 }
 
 document.addEventListener("input", (event) => {
@@ -750,22 +862,32 @@ document.addEventListener("click", async (event) => {
 
   if (target.dataset.go) return render(target.dataset.go);
 
+  if (target.dataset.interfaceTheme) {
+    state.theme = target.dataset.interfaceTheme;
+    saveState();
+    render();
+    return showToast(`${state.theme} interface selected.`);
+  }
+
   if (target.dataset.selectProfile) {
     const key = target.dataset.selectProfile;
     const value = target.dataset.value;
     if (target.dataset.multiple === "true") {
-      const current = state.profile[key];
-      state.profile[key] = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+      const current = state.onboardingSelections[key];
+      const updated = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+      state.onboardingSelections[key] = updated;
+      state.profile[key] = updated;
       saveState();
       return render();
     }
+    state.onboardingSelections[key] = value;
     state.profile[key] = value;
     saveState();
     return render(target.dataset.next);
   }
 
   if (target.dataset.continueMulti) {
-    if (!state.profile[target.dataset.continueMulti].length) return showToast("Choose at least one option first.");
+    if (!state.onboardingSelections[target.dataset.continueMulti].length) return showToast("Choose at least one option first.");
     return render(target.dataset.next);
   }
 
@@ -784,7 +906,10 @@ document.addEventListener("click", async (event) => {
   if (target.dataset.savedFilter) {
     state.savedFilter = target.dataset.savedFilter;
     saveState();
-    return render();
+    render();
+    document.querySelector(".saved-filter-bar")?.scrollIntoView({ block: "nearest" });
+    document.querySelector("[data-saved-filter].active")?.scrollIntoView({ inline: "center", block: "nearest" });
+    return;
   }
 
   if (target.dataset.createSource) {
@@ -830,6 +955,12 @@ document.addEventListener("click", async (event) => {
   const id = Number(target.dataset.id);
   if (!action) return;
 
+  if (action === "start-onboarding") {
+    state.onboardingSelections = structuredClone(defaultState.onboardingSelections);
+    saveState();
+    return render("vibe");
+  }
+
   if (action === "save") {
     if (!state.savedIds.includes(id)) state.savedIds.unshift(id);
     else state.savedIds = state.savedIds.filter((savedId) => savedId !== id);
@@ -862,8 +993,7 @@ document.addEventListener("click", async (event) => {
     saveState();
     return render("create");
   }
-  if (action === "download-card") return downloadCard();
-  if (action === "download-all") return downloadAllCards();
+  if (action === "save-to-photos") return saveCardToPhotos();
   if (action === "toggle-reminder") {
     state.reminderEnabled = !state.reminderEnabled;
     saveState();
@@ -878,12 +1008,6 @@ document.addEventListener("click", async (event) => {
     return showToast(`${state.selectedPlan} demo activated. No payment was taken.`);
   }
   if (action === "open-settings") return render("profile");
-  if (action === "toggle-theme") {
-    state.theme = state.theme === "Neon" ? "Extra Neon" : "Neon";
-    saveState();
-    render();
-    return showToast(`${state.theme} appearance selected.`);
-  }
   if (action === "restore") return showToast(state.trialStarted ? `${state.selectedPlan} demo restored.` : "No demo purchase found.");
   if (action === "privacy") return showToast("Privacy page placeholder. No personal data leaves this browser.");
   if (action === "terms") return showToast("Terms page placeholder for the production app.");
