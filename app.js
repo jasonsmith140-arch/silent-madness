@@ -15,6 +15,7 @@ const screens = [
   ["create", "Create"],
   ["saved", "Saved"],
   ["profile", "Profile"],
+  ["reminders", "Reminders"],
 ];
 
 const options = {
@@ -55,6 +56,7 @@ const options = {
     ["Let Me Choose a Time", "Your chaos, your calendar."],
   ],
   cardStyle: [
+    ["Editorial Gradient", "Bold condensed type on a clean pink-to-coral canvas."],
     ["Neon Poster", "Bright, loud, and impossible to ignore."],
     ["Dark Vintage", "Old paper, moonlight, and premium gloom."],
     ["Gothic Newspaper", "Headlines from your emotional basement."],
@@ -93,9 +95,26 @@ const cardPalettes = {
 const cardFonts = {
   "Poster Loud": { css: "Impact, 'Arial Narrow', sans-serif", canvas: "Impact, sans-serif", weight: 900 },
   "Gothic Editorial": { css: "'Iowan Old Style', Georgia, serif", canvas: "Georgia, serif", weight: 700 },
-  "Chaotic Marker": { css: "'Marker Felt', 'Segoe Print', cursive", canvas: "'Arial Rounded MT Bold', sans-serif", weight: 700 },
+  "Chaotic Marker": { css: "'Kalam', 'Marker Felt', 'Segoe Print', cursive", canvas: "'Arial Rounded MT Bold', sans-serif", weight: 700 },
   "Clean Modern": { css: "'Avenir Next', 'Helvetica Neue', sans-serif", canvas: "Arial, sans-serif", weight: 800 },
+  "Modern Grotesk": { css: "'Space Grotesk', 'Helvetica Neue', sans-serif", canvas: "Arial, sans-serif", weight: 700 },
+  "Condensed Editorial": { css: "'Bebas Neue', 'Arial Narrow', sans-serif", canvas: "Impact, sans-serif", weight: 400 },
+  "Handwritten Script": { css: "'Caveat', 'Segoe Print', cursive", canvas: "'Caveat', cursive", weight: 700 },
 };
+
+const cardFontColors = {
+  Auto: null,
+  White: "#f8f5ec",
+  Black: "#050505",
+  Pink: "#ff38ad",
+  Red: "#ff526c",
+  Green: "#62ff4e",
+  Yellow: "#ffdf28",
+  Cyan: "#43d7f5",
+  Violet: "#d47aff",
+};
+
+const cardEffects = ["Neon Glow", "Film Grain", "Soft Bloom", "Vignette", "Clean Matte"];
 
 const cardMoods = {
   "Dark Motivation": { icon: "moon", accent: "pink" },
@@ -132,6 +151,7 @@ const defaultState = {
   },
   currentQuoteId: 1,
   savedIds: [5, 4, 10],
+  favoriteIds: [5, 4, 10],
   sharedIds: [],
   customQuotes: [],
   selectedCategory: "Dark Motivation",
@@ -141,11 +161,20 @@ const defaultState = {
   createFormat: "Instagram Post",
   createColor: "Hot Pink",
   createFont: "Poster Loud",
+  createFontColor: "Auto",
+  createEffect: "Neon Glow",
   createMood: "Dark Motivation",
+  createTool: "Style",
   createQuoteId: 5,
   customText: "",
   savedCardDesigns: [],
   reminderEnabled: true,
+  reminderTime: "08:00",
+  reminderVibe: "Morning Madness",
+  reminderDays: ["M", "T", "W", "T2", "F"],
+  lateNightEnabled: false,
+  lateNightTime: "23:30",
+  streakDays: 23,
   selectedPlan: "Yearly Plan",
   trialStarted: false,
   theme: "Dark",
@@ -174,6 +203,12 @@ function loadState() {
     merged.profile.cardStyle = Array.isArray(merged.profile.cardStyle) ? merged.profile.cardStyle : [merged.profile.cardStyle].filter(Boolean);
     merged.onboardingSelections.goals = Array.isArray(merged.onboardingSelections.goals) ? merged.onboardingSelections.goals : [];
     merged.onboardingSelections.cardStyle = Array.isArray(merged.onboardingSelections.cardStyle) ? merged.onboardingSelections.cardStyle : [];
+    merged.favoriteIds = Array.isArray(merged.favoriteIds) ? merged.favoriteIds : [...merged.savedIds];
+    merged.reminderDays = Array.isArray(merged.reminderDays) ? merged.reminderDays : [...defaultState.reminderDays];
+    if (!["Style", "Background", "Colors", "Effects"].includes(merged.createTool)) merged.createTool = "Style";
+    if (!cardFontColors.hasOwnProperty(merged.createFontColor)) merged.createFontColor = "Auto";
+    if (!cardEffects.includes(merged.createEffect)) merged.createEffect = "Neon Glow";
+    if (!["All", "Favorites", "By Mood"].includes(merged.savedFilter)) merged.savedFilter = "All";
     if (!["Dark", "Light"].includes(merged.theme)) merged.theme = "Dark";
     if (!exportFormats[merged.createFormat]) merged.createFormat = "Instagram Post";
     return merged;
@@ -265,6 +300,7 @@ function stickerIcon(name, size = "md", accent = "pink") {
     chevron: `<path fill="${color}" stroke="${ink}" stroke-width="3" stroke-linejoin="round" d="m14 6 22 18-22 18 7-18-7-18Z"/>`,
     sparkleBone: `<path fill="${color}" stroke="${ink}" stroke-width="2.5" d="m24 2 5 15 15 7-15 6-5 16-6-16-15-6 15-7 6-15Z"/><circle cx="24" cy="24" r="4" fill="${bone}" stroke="${ink}" stroke-width="2"/>`,
     tinyTask: `<path fill="${green}" stroke="${ink}" stroke-width="3" d="M11 7h27v34H11z"/><path fill="${bone}" stroke="${ink}" stroke-width="2.5" d="M17 3h15v8H17z"/><path fill="none" stroke="${ink}" stroke-width="2.5" stroke-linecap="round" d="m17 20 3 3 5-7m-8 15 3 3 5-7m4-7h5m-5 11h5"/>`,
+    flame: `<path fill="${color}" stroke="${ink}" stroke-width="3" d="M27 3c3 10-7 12-2 21 2-7 9-8 8-16 9 8 13 17 8 27-4 8-12 11-19 9C9 41 4 30 9 20c3-6 8-9 12-14-1 8 2 10 6 13 4-6 2-10 0-16Z"/><path fill="${bone}" stroke="${ink}" stroke-width="2.5" d="M25 24c5 5 6 9 3 14-2 3-7 3-10 0-4-6 1-10 7-14Z"/>`,
   };
   const content = paths[name] || paths.sparkleBone;
   return `<svg class="sticker-icon sticker-icon--${size} sticker-icon--${accent}" viewBox="0 0 50 48" aria-hidden="true" focusable="false">${content}</svg>`;
@@ -374,26 +410,27 @@ function quoteCard(quote) {
 
 function savedCards() {
   let list = state.savedIds.map(getQuote);
-  if (state.savedFilter === "Shared") list = list.filter((quote) => state.sharedIds.includes(quote.id));
-  if (state.savedFilter === "Custom") list = list.filter((quote) => quote.custom);
-  if (!["All", "Shared", "Custom"].includes(state.savedFilter)) {
-    const category = state.savedFilter === "Workplace" ? "Workplace Survival" : state.savedFilter;
-    list = list.filter((quote) => quote.category === category);
-  }
+  if (state.savedFilter === "Favorites") list = list.filter((quote) => state.favoriteIds.includes(quote.id));
+  if (state.savedFilter === "By Mood") list.sort((a, b) => a.category.localeCompare(b.category));
   if (!list.length) {
     return `<div class="empty-state"><p class="subtext">Nothing saved here yet. Suspiciously emotionally healthy.</p><button class="secondary-btn" data-go="explore">Find Quotes</button></div>`;
   }
   return list
     .map(
       (quote, index) => `
-        <article class="saved-card poster-${(index % 7) + 1} ${(index % 7) >= 3 ? "poster-dark" : ""}">
+        <article class="saved-card saved-card-v2 saved-art-${(index % 4) + 1} ${quote.text.length > 95 ? "saved-art-long" : quote.text.length > 65 ? "saved-art-medium" : "saved-art-short"}">
+          <span class="saved-art-texture" aria-hidden="true"></span>
+          <details class="saved-card-menu">
+            <summary aria-label="Quote actions">•••</summary>
+            <div>
+              <button data-action="share" data-id="${quote.id}">Share</button>
+              <button data-action="use-card" data-id="${quote.id}">Edit</button>
+              <button data-action="remove" data-id="${quote.id}">Remove</button>
+            </div>
+          </details>
+          <button class="favorite-button ${state.favoriteIds.includes(quote.id) ? "active" : ""}" data-action="favorite" data-id="${quote.id}" title="Favorite quote">♥</button>
           <h3>“${escapeHtml(quote.text)}”</h3>
-          <p>${quote.category} · Saved locally</p>
-          <div class="saved-actions">
-            <button data-action="share" data-id="${quote.id}">${stickerIcon("flyingPaper", "button", "yellow")}<span>Share</span></button>
-            <button data-action="use-card" data-id="${quote.id}">${stickerIcon("markerBolt", "button", "cyan")}<span>Create</span></button>
-            <button data-action="remove" data-id="${quote.id}">${stickerIcon("coffinArchive", "button", "red")}<span>Remove</span></button>
-          </div>
+          <img class="saved-card-logo" src="./assets/silent-madness-logo.png" alt="Silent Madness" />
         </article>`,
     )
     .join("");
@@ -405,9 +442,10 @@ function categoryCards(filter = "") {
     .filter(([title, text]) => `${title} ${text}`.toLowerCase().includes(normalized))
     .map(
       ([title, text, icon], index) => `
-        <button class="category-card accent-${(index % 4) + 1}" data-category="${escapeHtml(title)}">
+        <button class="category-card category-card-v2 category-tone-${(index % 6) + 1}" data-category="${escapeHtml(title)}">
+          <strong>${stickerIcon(icon, "category", ["pink", "red", "green", "pink", "cyan", "yellow"][index % 6])}</strong>
           <span><h3>${title}</h3><p>${text}</p></span>
-          <strong>${stickerIcon(icon, "category", ["pink", "yellow", "green", "red"][index % 4])}</strong>
+          <b class="category-arrow" aria-hidden="true">→</b>
         </button>`,
     )
     .join("") || `<div class="empty-state" style="grid-column:1/-1"><p class="subtext">No chaos found under that name.</p></div>`;
@@ -418,13 +456,14 @@ function categoryQuoteCards() {
     .filter((quote) => quote.category === state.selectedCategory)
     .map(
       (quote, index) => `
-        <article class="saved-card poster-${(index % 7) + 1} ${(index % 7) >= 3 ? "poster-dark" : ""}">
+        <article class="explore-quote-card explore-art-${(index % 4) + 1} ${quote.text.length > 95 ? "explore-art-long" : quote.text.length > 65 ? "explore-art-medium" : "explore-art-short"}">
+          <span class="explore-art-texture" aria-hidden="true"></span>
           <h3>“${escapeHtml(quote.text)}”</h3>
-          <p>${quote.category} · ${quote.mood}</p>
-          <div class="saved-actions">
-            <button data-action="save" data-id="${quote.id}">${stickerIcon("stitchedHeart", "button", "red")}<span>${state.savedIds.includes(quote.id) ? "Saved" : "Save"}</span></button>
-            <button data-action="share" data-id="${quote.id}">${stickerIcon("flyingPaper", "button", "yellow")}<span>Share</span></button>
-            <button data-action="use-card" data-id="${quote.id}">${stickerIcon("markerBolt", "button", "cyan")}<span>Create</span></button>
+          <img class="explore-card-logo" src="./assets/silent-madness-logo.png" alt="Silent Madness" />
+          <div class="explore-card-actions">
+            <button class="${state.savedIds.includes(quote.id) ? "active" : ""}" data-action="save" data-id="${quote.id}" title="Save quote">♥</button>
+            <button data-action="share" data-id="${quote.id}" title="Share quote">↗</button>
+            <button data-action="use-card" data-id="${quote.id}" title="Create card">✦</button>
           </div>
         </article>`,
     )
@@ -441,11 +480,35 @@ function createPreviewQuote() {
 function cardPreviewStyle() {
   const palette = cardPalettes[state.createColor];
   const font = cardFonts[state.createFont];
-  return `--card-bg:${palette.background};--card-ink:${palette.ink};--card-accent:${palette.accent};--card-font:${font.css};--logo-filter:${palette.logoFilter}`;
+  const automaticTextColor = state.createStyle === "Editorial Gradient"
+    ? "#050505"
+    : state.createStyle === "Minimal Black and White"
+      ? "#f8f5ec"
+      : palette.accent;
+  const textColor = cardFontColors[state.createFontColor] || automaticTextColor;
+  return `--card-bg:${palette.background};--card-ink:${palette.ink};--card-accent:${palette.accent};--card-text:${textColor};--card-font:${font.css};--logo-filter:${palette.logoFilter}`;
 }
 
 function styleSlug(value) {
   return value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function createToolPanel() {
+  if (state.createTool === "Style") {
+    return `<div class="creator-tool-panel"><div class="creator-choice-grid">${options.cardStyle.map(([item]) => `<button class="creator-choice ${state.createStyle === item ? "active" : ""}" data-create-style="${item}">${item}</button>`).join("")}</div></div>`;
+  }
+  if (state.createTool === "Background") {
+    return `<div class="creator-tool-panel"><div class="swatch-grid creator-swatches">${Object.entries(cardPalettes).map(([name, palette]) => `<button class="color-swatch ${state.createColor === name ? "active" : ""}" data-create-color="${name}" title="${name}" style="--swatch:${palette.background};--swatch-accent:${palette.accent}"><span></span><b>${name}</b></button>`).join("")}</div></div>`;
+  }
+  if (state.createTool === "Colors") {
+    return `<div class="creator-tool-panel"><p class="creator-panel-label">Font</p><div class="font-grid">${Object.keys(cardFonts).map((name) => `<button class="font-choice ${state.createFont === name ? "active" : ""}" data-create-font="${name}" style="font-family:${cardFonts[name].css}">${name}</button>`).join("")}</div><p class="creator-panel-label">Font color</p><div class="font-color-grid">${Object.entries(cardFontColors).map(([name, color]) => `<button class="font-color-choice ${state.createFontColor === name ? "active" : ""}" data-create-font-color="${name}" title="${name}" style="--font-swatch:${color || "linear-gradient(135deg,#ff38ad 0 45%,#f8f5ec 46% 100%)"}"><span></span><b>${name}</b></button>`).join("")}</div></div>`;
+  }
+  return `<div class="creator-tool-panel"><p class="creator-panel-label">Design effect</p><div class="effect-grid">${cardEffects.map((name) => `<button class="effect-choice effect-preview-${styleSlug(name)} ${state.createEffect === name ? "active" : ""}" data-create-effect="${name}"><span></span><b>${name}</b></button>`).join("")}</div><p class="creator-panel-label">Canvas size</p><div class="format-grid">${Object.entries(exportFormats).map(([name, format]) => `<button class="chip ${state.createFormat === name ? "active" : ""}" data-create-format="${name}">${format.label}</button>`).join("")}</div><p class="creator-panel-label">Quote source</p><div class="style-grid">${["Today’s Quote", "Pick from Saved", "Generate New", "Write My Own"].map((item) => `<button class="chip ${state.createSource === item ? "active" : ""}" data-create-source="${item}">${item}</button>`).join("")}</div>${state.createSource === "Write My Own" ? `<textarea class="custom-quote" data-custom-quote maxlength="180" placeholder="Write your own clean chaos...">${escapeHtml(state.customText)}</textarea>` : ""}</div>`;
+}
+
+function streakWeek() {
+  const days = [["M", true], ["T", true], ["W", true], ["T", true], ["F", true], ["S", true], ["S", false]];
+  return days.map(([day, complete]) => `<div class="streak-day"><span>${day}</span><b class="${complete ? "complete" : ""}">${complete ? "✓" : day}</b></div>`).join("");
 }
 
 const templates = {
@@ -506,101 +569,150 @@ const templates = {
 
   today: () => {
     const quote = getQuote();
+    const artIndex = ((Number(quote.id) - 1) % 4) + 1;
+    const lengthClass = quote.text.length > 105 ? "today-art-long" : quote.text.length > 70 ? "today-art-medium" : "today-art-short";
     return `
-      <section class="screen scrollable screen-enter">
+      <section class="screen scrollable screen-enter screen--today-v2">
         ${header()}
-        <p class="eyebrow" style="margin-top:20px">${stickerIcon("suspiciousFlower", "benefit", "green")} MORNING, TROUBLEMAKER</p>
-        <h2 class="headline today-title">TODAY'S PEP TALK<br><em>JUST ROLLED IN.</em></h2>
-        ${quoteCard(quote)}
-        <div class="mini-actions">
-          <button data-action="save" data-id="${quote.id}" title="Save quote">${stickerIcon("stitchedHeart", "action", "red")}<span>${state.savedIds.includes(quote.id) ? "Saved" : "Save"}</span></button>
-          <button data-action="share" data-id="${quote.id}" title="Share quote">${stickerIcon("flyingPaper", "action", "yellow")}<span>Share</span></button>
-          <button data-action="new-quote" title="New quote">${stickerIcon("skullRefresh", "action", "orange")}<span>New</span></button>
-          <button data-action="toggle-reminder" title="Toggle reminder">${stickerIcon("batAlarm", "action", "green")}<span>${state.reminderEnabled ? "On" : "Off"}</span></button>
+        <div class="today-intro">
+          <span>GOOD MORNING, TROUBLEMAKER.</span>
+          <h2>YOUR DAILY<br><em>MADNESS.</em></h2>
         </div>
-        <div class="task-card"><h3>${stickerIcon("tinyTask", "title", "green")} Today’s Tiny Task</h3><p class="subtext">Protect your peace like it has a tiny security team.</p><button class="secondary-btn" data-action="tiny-task" style="margin-top:12px">I needed that</button></div>
+        <article class="today-art-card today-art-${artIndex} ${lengthClass}">
+          <span class="today-art-texture" aria-hidden="true"></span>
+          <span class="today-art-label">TODAY'S QUOTE</span>
+          <blockquote>“${escapeHtml(quote.text)}”</blockquote>
+          <img src="./assets/silent-madness-logo.png" alt="Silent Madness" />
+          <button class="today-favorite ${state.savedIds.includes(quote.id) ? "active" : ""}" data-action="save" data-id="${quote.id}" title="Save quote">♥</button>
+        </article>
+        <div class="today-actions">
+          <button data-action="share" data-id="${quote.id}" title="Share quote"><span>↗</span><b>Share</b></button>
+          <button data-action="new-quote" title="New quote"><span>↻</span><b>New quote</b></button>
+          <button data-action="use-card" data-id="${quote.id}" title="Create quote card"><span>✦</span><b>Create</b></button>
+          <button data-go="reminders" title="Open reminders"><span>◷</span><b>${state.reminderEnabled ? state.reminderTime : "Remind"}</b></button>
+        </div>
+        <div class="today-task-v2">
+          <span>${stickerIcon("tinyTask", "title", "pink")}</span>
+          <div><small>TODAY'S TINY TASK</small><p>Protect your peace like it has a tiny security team.</p></div>
+          <button data-action="tiny-task" title="Complete task">✓</button>
+        </div>
         ${bottomNav("today")}
       </section>`;
   },
 
   explore: () => `
-    <section class="screen scrollable screen-enter">
-      ${header("EXPLORE THE MADNESS")}
-      <p class="eyebrow">${stickerIcon("confusedEye", "benefit", "green")} GO ON, DIG AROUND</p>
-      <input class="search" data-search placeholder="Search quotes, moods, or chaos..." />
+    <section class="screen scrollable screen-enter screen--explore-v2">
+      ${header()}
+      <div class="simple-screen-heading">
+        <h2>EXPLORE</h2>
+        <p>HOW DO YOU FEEL?</p>
+      </div>
+      <label class="explore-search">
+        <span aria-hidden="true"></span>
+        <input data-search placeholder="Search quotes, moods, or chaos..." aria-label="Search quotes, moods, or chaos" />
+      </label>
       <div class="category-list" data-category-list>${categoryCards()}</div>
-      <div class="lock-box"><p class="subtext" style="margin:0 0 10px">Premium packs are available in the demo.</p><button class="secondary-btn" data-go="paywall">View Premium</button></div>
       ${bottomNav("explore")}
     </section>`,
 
   quoteDetail: () => `
-    <section class="screen scrollable screen-enter">
-      <button class="icon-btn" data-go="explore" title="Back">${stickerIcon("back", "sm", "pink")}</button>
-      <h2 class="headline" style="margin-top:18px">${state.selectedCategory}</h2>
-      <p class="subtext">${categories.find(([title]) => title === state.selectedCategory)?.[1] || "A beautifully strange collection."}</p>
-      <button class="secondary-btn" data-action="shuffle-category" style="margin:16px 0">Shuffle Quote</button>
-      <div class="saved-list">${categoryQuoteCards()}</div>
+    <section class="screen scrollable screen-enter screen--category-v2">
+      <div class="creator-header"><button class="creator-back" data-go="explore" title="Back">‹</button><img src="./assets/silent-madness-logo.png" alt="Silent Madness" /><button class="creator-next" data-action="shuffle-category">SHUFFLE</button></div>
+      <div class="simple-screen-heading"><h2>${state.selectedCategory}</h2><p>${categories.find(([title]) => title === state.selectedCategory)?.[1] || "A beautifully strange collection."}</p></div>
+      <div class="explore-quote-list">${categoryQuoteCards()}</div>
+      ${bottomNav("explore")}
     </section>`,
 
   create: () => {
     const preview = createPreviewQuote();
     return `
-      <section class="screen scrollable screen-enter">
-        ${header("MAKE A LOUD CARD.")}
-        <p class="eyebrow">${stickerIcon("markerBolt", "benefit", "green")} SHARE-WORTHY IN 3 TAPS</p>
-        <div class="step-panel"><p class="section-title" style="margin-top:0">1. Choose Quote</p><div class="style-grid">${["Today’s Quote", "Pick from Saved", "Generate New", "Write My Own"].map((item) => `<button class="chip ${state.createSource === item ? "active" : ""}" data-create-source="${item}">${item}</button>`).join("")}</div>${state.createSource === "Write My Own" ? `<textarea class="custom-quote" data-custom-quote maxlength="180" placeholder="Write your own clean chaos...">${escapeHtml(state.customText)}</textarea>` : ""}</div>
-        <div class="step-panel"><p class="section-title" style="margin-top:0">2. Base Style</p><div class="style-grid">${options.cardStyle.map(([item]) => `<button class="chip ${state.createStyle === item ? "active" : ""}" data-create-style="${item}">${item}</button>`).join("")}</div></div>
-        <div class="step-panel"><p class="section-title" style="margin-top:0">3. Card Color</p><div class="swatch-grid">${Object.entries(cardPalettes).map(([name, palette]) => `<button class="color-swatch ${state.createColor === name ? "active" : ""}" data-create-color="${name}" title="${name}" style="--swatch:${palette.background};--swatch-accent:${palette.accent}"><span></span><b>${name}</b></button>`).join("")}</div></div>
-        <div class="step-panel"><p class="section-title" style="margin-top:0">4. Text Font</p><div class="font-grid">${Object.keys(cardFonts).map((name) => `<button class="font-choice ${state.createFont === name ? "active" : ""}" data-create-font="${name}" style="font-family:${cardFonts[name].css}">${name}</button>`).join("")}</div></div>
-        <div class="step-panel"><p class="section-title" style="margin-top:0">5. Mood</p><div class="mood-grid">${Object.entries(cardMoods).map(([name, config]) => `<button class="mood-choice ${state.createMood === name ? "active" : ""}" data-create-mood="${name}">${stickerIcon(config.icon, "button", config.accent)}<span>${name}</span></button>`).join("")}</div></div>
-        <div class="step-panel"><p class="section-title" style="margin-top:0">6. Preview Ratio</p><div class="format-grid">${Object.entries(exportFormats).map(([name, format]) => `<button class="chip ${state.createFormat === name ? "active" : ""}" data-create-format="${name}">${format.label}</button>`).join("")}</div></div>
-        <div class="step-panel"><p class="section-title" style="margin-top:0">7. Preview</p><div class="preview-stage preview-${state.createFormat.toLowerCase().replaceAll(" ", "-")}"><div class="card-preview theme-${styleSlug(state.createStyle)}" style="${cardPreviewStyle()}"><span class="theme-decoration theme-decoration-a" aria-hidden="true"></span><span class="theme-decoration theme-decoration-b" aria-hidden="true"></span><strong>${escapeHtml(preview.text)}</strong><img class="brand-stamp" src="./assets/silent-madness-logo.png" alt="Silent Madness" /></div></div></div>
-        <button class="primary-btn save-all-btn" data-action="save-to-photos">${stickerIcon("flyingPaper", "button", "yellow")} Save to Photos</button>
-        <p class="small-muted save-format-note">${exportFormats[state.createFormat].label} selected · On phone, choose “Save Image” when the share sheet opens.</p>
-        <button class="secondary-btn" data-action="share-preview" style="margin-top:10px">Share Quote</button>
+      <section class="screen scrollable screen-enter screen--create-v2">
+        <div class="creator-header">
+          <button class="creator-back" data-go="today" title="Back">‹</button>
+          <img src="./assets/silent-madness-logo.png" alt="Silent Madness" />
+          <button class="creator-next" data-action="save-to-photos">NEXT</button>
+        </div>
+        <div class="creator-title-row"><h2>CREATE</h2><span aria-hidden="true">≋</span></div>
+        <div class="creator-canvas-wrap">
+          <button class="canvas-corner canvas-close" data-go="today" title="Close editor">×</button>
+          <button class="canvas-corner canvas-layers" data-create-tool="Style" title="Card layers">≋</button>
+          <div class="preview-stage preview-${state.createFormat.toLowerCase().replaceAll(" ", "-")}"><div class="card-preview theme-${styleSlug(state.createStyle)} effect-${styleSlug(state.createEffect)}" style="${cardPreviewStyle()}"><span class="theme-decoration theme-decoration-a" aria-hidden="true"></span><span class="theme-decoration theme-decoration-b" aria-hidden="true"></span><strong>${escapeHtml(preview.text)}</strong><img class="brand-stamp" src="./assets/silent-madness-logo.png" alt="Silent Madness" /></div></div>
+        </div>
+        <div class="creator-toolbar">
+          ${[["Style", "A"], ["Background", "▧"], ["Colors", "◉"], ["Effects", "✦"]].map(([tool, icon]) => `<button class="${state.createTool === tool ? "active" : ""}" data-create-tool="${tool}"><b>${icon}</b><span>${tool}</span></button>`).join("")}
+        </div>
+        ${createToolPanel()}
+        <div class="creator-actions"><button class="primary-btn" data-action="save-to-photos">Save to Photos</button><button class="secondary-btn" data-action="share-preview">Share</button></div>
         ${bottomNav("create")}
       </section>`;
   },
 
   saved: () => `
-    <section class="screen scrollable screen-enter">
-      ${header("YOUR LITTLE MUSEUM")}
-      <p class="eyebrow">${stickerIcon("coffinArchive", "benefit", "green")} THINGS THAT ALMOST SAID IT FOR YOU</p>
-      <div class="saved-filter-bar"><div class="tabs">${["All", "Dark Motivation", "Soft but Dangerous", "Workplace", "Shared", "Custom"].map((item) => `<button class="tab ${state.savedFilter === item ? "active" : ""}" data-saved-filter="${item}">${item}</button>`).join("")}</div></div>
+    <section class="screen scrollable screen-enter screen--saved-v2">
+      ${header()}
+      <div class="simple-screen-heading"><h2>SAVED QUOTES</h2><p>KEEP WHAT HITS DIFFERENT.</p></div>
+      <div class="saved-filter-bar"><div class="tabs">${["All", "Favorites", "By Mood"].map((item) => `<button class="tab ${state.savedFilter === item ? "active" : ""}" data-saved-filter="${item}">${item}</button>`).join("")}</div></div>
       <div class="saved-list">${savedCards()}</div>
       ${bottomNav("saved")}
     </section>`,
 
   profile: () => `
-    <section class="screen scrollable screen-enter">
-      ${header("HELLO, WEIRDO.")}
-      <div class="profile-card profile-identity-card" style="margin-top:15px">
-        <span class="badge profile-plan-badge">${state.trialStarted ? `${state.selectedPlan} Demo` : "Free Profile"}</span>
-        <div class="profile-identity">
-          <div class="profile-sticker">${stickerIcon("skullBattery", "hero", "yellow")}</div>
-          <div class="profile-copy">
-            <h2 class="profile-title">DEAD INSIDE,<br><em>STILL TRYING.</em></h2>
-            <p class="subtext">${state.profile.status}. Still showing up.</p>
-          </div>
+    <section class="screen scrollable screen-enter screen--profile-v2">
+      ${header()}
+      <div class="simple-screen-heading profile-heading"><h2>PROFILE</h2><p>YOUR DAILY CHAOS, ORGANIZED.</p></div>
+      <div class="streak-hero">
+        <div class="streak-copy">
+          <small>CURRENT STREAK</small>
+          <strong>${state.streakDays}<span>DAYS</span></strong>
+          <p>Quiet consistency looks suspiciously good on you.</p>
         </div>
+        <div class="streak-flame">${stickerIcon("flame", "hero", "pink")}</div>
       </div>
-      <div class="preference-grid"><div class="pref"><span>Quote Vibe</span><strong>${state.profile.vibe}</strong></div><div class="pref"><span>Madness Level</span><strong>${state.profile.level}</strong></div><div class="pref"><span>Quote Goals</span><strong>${state.profile.goals.length} selected</strong></div><div class="pref"><span>Card Styles</span><strong>${state.profile.cardStyle.length} selected</strong></div></div>
+      <div class="streak-week">${streakWeek()}</div>
+      <div class="badge-heading"><h3>BADGES</h3><span>4 EARNED</span></div>
+      <div class="badge-grid">
+        <div>${stickerIcon("tiredSun", "category", "yellow")}<span><strong>Early Bird</strong><small>Morning chaos mastered</small></span></div>
+        <div>${stickerIcon("moon", "category", "pink")}<span><strong>Night Owl</strong><small>Wisdom after midnight</small></span></div>
+        <div>${stickerIcon("confusedEye", "category", "cyan")}<span><strong>Overthinker</strong><small>Thought spiral survivor</small></span></div>
+        <div>${stickerIcon("stitchedHeart", "category", "red")}<span><strong>Soft Heart</strong><small>Still kind, somehow</small></span></div>
+      </div>
+      <p class="profile-section-label">YOUR ROUTINE</p>
+      <button class="reminder-link-card" data-go="reminders">${stickerIcon("batAlarm", "category", "pink")}<span><strong>Daily reminders</strong><small>${state.reminderEnabled ? `${state.reminderTime} · ${state.reminderVibe}` : "Currently paused"}</small></span><b>›</b></button>
       <div class="appearance-panel">
-        <p class="section-title">Interface Colour</p>
+        <p class="section-title">APPEARANCE</p>
         <div class="appearance-options">
           <button class="appearance-choice ${state.theme === "Dark" ? "active" : ""}" data-interface-theme="Dark"><span class="appearance-preview appearance-preview-dark"></span><strong>Dark</strong><small>Midnight neon</small></button>
           <button class="appearance-choice ${state.theme === "Light" ? "active" : ""}" data-interface-theme="Light"><span class="appearance-preview appearance-preview-light"></span><strong>Light</strong><small>Bone paper neon</small></button>
         </div>
       </div>
+      <p class="profile-section-label">PROFILE SETTINGS</p>
       <div class="settings-list">
         <button class="setting-row" data-go="vibe">${stickerIcon("crackedMirror", "setting", "cyan")}<span>Edit My Madness Profile</span>${stickerIcon("chevron", "button", "pink")}</button>
-        <button class="setting-row" data-action="toggle-reminder">${stickerIcon("batAlarm", "setting", "green")}<span>Notifications</span><span class="switch ${state.reminderEnabled ? "on" : ""}"></span></button>
         <button class="setting-row" data-go="paywall">${stickerIcon("trophy", "setting", "yellow")}<span>Subscription</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-action="restore">${stickerIcon("coffinArchive", "setting", "red")}<span>Restore Purchases</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-action="privacy">${stickerIcon("confusedEye", "setting", "cyan")}<span>Privacy Policy</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-action="terms">${stickerIcon("hauntedMug", "setting", "pink")}<span>Terms of Use</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-action="support">${stickerIcon("flyingPaper", "setting", "yellow")}<span>Contact Support</span>${stickerIcon("chevron", "button", "pink")}</button>
         <button class="setting-row" data-action="reset">${stickerIcon("skullRefresh", "setting", "red")}<span>Reset Demo Data</span>${stickerIcon("chevron", "button", "pink")}</button>
+      </div>
+      ${bottomNav("profile")}
+    </section>`,
+
+  reminders: () => `
+    <section class="screen scrollable screen-enter screen--reminders-v2">
+      <div class="creator-header"><button class="creator-back" data-go="profile" title="Back">‹</button><img src="./assets/silent-madness-logo.png" alt="Silent Madness" /><span></span></div>
+      <div class="simple-screen-heading"><h2>REMINDERS</h2><p>GET THE RIGHT MESSAGE AT THE RIGHT TIME.</p></div>
+      <div class="reminder-banner"><span>YOU GOT THIS.</span><strong>WE'LL REMIND YOU.</strong>${stickerIcon("batAlarm", "hero", "pink")}</div>
+      <div class="reminder-panel">
+        <div class="reminder-panel-title"><strong>DAILY REMINDER</strong><button class="switch ${state.reminderEnabled ? "on" : ""}" data-action="toggle-reminder" aria-label="Toggle daily reminder"></button></div>
+        <button class="reminder-row" data-action="cycle-reminder-time"><span>Time</span><strong>${state.reminderTime} ›</strong></button>
+        <button class="reminder-row" data-action="cycle-reminder-vibe"><span>Vibe</span><strong>${state.reminderVibe} ›</strong></button>
+        <div class="reminder-days"><span>Days</span><div>${[["S","S1"],["M","M"],["T","T"],["W","W"],["T","T2"],["F","F"],["S","S2"]].map(([label, value]) => `<button class="${state.reminderDays.includes(value) ? "active" : ""}" data-reminder-day="${value}">${label}</button>`).join("")}</div></div>
+      </div>
+      <div class="reminder-panel">
+        <div class="reminder-panel-title"><span><strong>LATE NIGHT MODE</strong><small>For overthinkers and midnight survivors.</small></span><button class="switch ${state.lateNightEnabled ? "on" : ""}" data-action="toggle-late-night" aria-label="Toggle late night mode"></button></div>
+        <button class="reminder-row" data-action="cycle-late-time"><span>Time</span><strong>${state.lateNightTime} ›</strong></button>
+        <div class="reminder-row"><span>Vibe</span><strong>Late Night Thoughts</strong></div>
       </div>
       ${bottomNav("profile")}
     </section>`,
@@ -611,9 +723,17 @@ function renderNav() {
 }
 
 function render(id = currentScreen) {
+  const previousScreen = currentScreen;
+  const previousScroller = app.querySelector(".screen.scrollable");
+  const previousScrollTop = previousScroller?.scrollTop || 0;
+  const preserveScroll = id === previousScreen;
   currentScreen = templates[id] ? id : "today";
   applyInterfaceTheme();
   app.innerHTML = templates[currentScreen]();
+  if (preserveScroll) {
+    const nextScroller = app.querySelector(".screen.scrollable");
+    if (nextScroller) nextScroller.scrollTop = previousScrollTop;
+  }
   renderNav();
 }
 
@@ -651,6 +771,7 @@ function loadImage(src) {
 }
 
 async function buildCardCanvas(formatName) {
+  if (document.fonts?.ready) await document.fonts.ready;
   const quote = createPreviewQuote();
   const { width, height } = exportFormats[formatName];
   const palette = cardPalettes[state.createColor];
@@ -667,84 +788,144 @@ async function buildCardCanvas(formatName) {
   let textAlign = "center";
   let themeFont = font.canvas;
   let uppercase = state.createFont === "Poster Loud";
-
-  ctx.fillStyle = palette.background;
-  ctx.fillRect(0, 0, width, height);
+  const isEditorialGradient = theme === "Editorial Gradient";
+  const automaticTextColor = isEditorialGradient
+    ? "#050505"
+    : theme === "Minimal Black and White"
+      ? "#f8f5ec"
+      : palette.accent;
+  const textColor = cardFontColors[state.createFontColor] || automaticTextColor;
 
   const inset = Math.max(38, Math.min(width, height) * 0.045);
-  ctx.strokeStyle = palette.ink;
-  ctx.lineWidth = Math.max(8, unit * 0.012);
-
-  if (theme === "Neon Poster") {
-    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
-    ctx.fillStyle = palette.accent;
-    ctx.fillRect(width * 0.78, height * 0.08, unit * 0.055, unit * 0.055);
-    ctx.beginPath();
-    ctx.arc(width / 2, height * 0.18, unit * 0.06, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  } else if (theme === "Dark Vintage") {
-    const vignette = ctx.createRadialGradient(width / 2, height / 2, unit * 0.15, width / 2, height / 2, Math.max(width, height) * 0.7);
-    vignette.addColorStop(0, "rgba(90,65,35,0.08)");
-    vignette.addColorStop(1, "rgba(0,0,0,0.5)");
-    ctx.fillStyle = vignette;
+  if (isEditorialGradient) {
+    const editorialGradient = ctx.createLinearGradient(0, 0, width, height);
+    editorialGradient.addColorStop(0, "#ff2fa7");
+    editorialGradient.addColorStop(0.58, "#f43d87");
+    editorialGradient.addColorStop(1, "#ff7864");
+    ctx.fillStyle = editorialGradient;
     ctx.fillRect(0, 0, width, height);
-    ctx.lineWidth = Math.max(5, unit * 0.007);
-    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
-    ctx.strokeRect(inset * 1.35, inset * 1.35, width - inset * 2.7, height - inset * 2.7);
-    themeFont = "Georgia, serif";
-    uppercase = false;
-  } else if (theme === "Gothic Newspaper") {
-    ctx.fillStyle = palette.ink;
-    ctx.fillRect(0, height * 0.13, width, Math.max(4, unit * 0.007));
-    ctx.fillRect(0, height * 0.19, width, Math.max(2, unit * 0.003));
-    ctx.textAlign = "center";
-    ctx.font = `900 ${Math.round(unit * 0.035)}px Georgia, serif`;
-    ctx.fillText("THE SILENT MADNESS GAZETTE", width / 2, height * 0.165);
-    textX = width * 0.12;
-    textY = height * 0.48;
-    textAlign = "left";
-    maxTextWidth = width * 0.76;
-    themeFont = "Georgia, serif";
-    uppercase = false;
-  } else if (theme === "Minimal Black and White") {
-    ctx.lineWidth = Math.max(3, unit * 0.004);
-    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
-    ctx.strokeRect(inset * 1.3, inset * 1.3, width - inset * 2.6, height - inset * 2.6);
-    themeFont = "Arial, sans-serif";
-    uppercase = false;
-    maxTextWidth = width * 0.68;
-  } else if (theme === "Cute but Concerning") {
-    ctx.lineWidth = Math.max(8, unit * 0.012);
-    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
-    [[0.12, 0.14, 0.025], [0.86, 0.18, 0.018], [0.16, 0.82, 0.03], [0.84, 0.78, 0.022]].forEach(([x, y, radius]) => {
-      ctx.fillStyle = palette.accent;
-      ctx.beginPath();
-      ctx.arc(width * x, height * y, unit * radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    });
-    themeFont = "'Arial Rounded MT Bold', Arial, sans-serif";
-    uppercase = false;
-  } else {
+
     ctx.save();
-    ctx.translate(width / 2, height / 2);
-    ctx.rotate(-0.018);
-    ctx.translate(-width / 2, -height / 2);
-    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
-    ctx.fillStyle = palette.accent;
-    ctx.globalAlpha = 0.72;
-    ctx.rotate(-0.08);
-    ctx.fillRect(width * 0.08, height * 0.07, width * 0.2, unit * 0.055);
+    ctx.globalAlpha = 0.075;
+    ctx.strokeStyle = "#f8f5ec";
+    ctx.lineWidth = Math.max(1, unit * 0.0015);
+    const stripeGap = Math.max(18, unit * 0.025);
+    for (let x = -height; x < width + height; x += stripeGap) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x - height * 0.24, height);
+      ctx.stroke();
+    }
     ctx.restore();
-    themeFont = "'Arial Rounded MT Bold', Arial, sans-serif";
-    uppercase = false;
+
+    ctx.fillStyle = "rgba(5,5,5,0.72)";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.font = `700 ${Math.round(unit * 0.028)}px Impact, sans-serif`;
+    ctx.fillText("TODAY'S QUOTE", inset * 1.35, inset * 1.25);
+    textX = width / 2;
+    textY = height * 0.48;
+    maxTextWidth = width * (width > height ? 0.72 : 0.75);
+    textAlign = "center";
+    uppercase = true;
+  } else {
+    ctx.fillStyle = "#030303";
+    ctx.fillRect(0, 0, width, height);
+
+    const glow = ctx.createRadialGradient(width * 0.2, height * 0.18, 0, width * 0.2, height * 0.18, Math.max(width, height) * 0.48);
+    glow.addColorStop(0, palette.accent);
+    glow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.save();
+    ctx.globalAlpha = theme === "Minimal Black and White" ? 0.05 : 0.22;
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+
+    const secondGlow = ctx.createRadialGradient(width * 0.86, height * 0.72, 0, width * 0.86, height * 0.72, Math.max(width, height) * 0.42);
+    secondGlow.addColorStop(0, palette.background);
+    secondGlow.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.save();
+    ctx.globalAlpha = theme === "Cute but Concerning" ? 0.3 : 0.15;
+    ctx.fillStyle = secondGlow;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
   }
 
-  ctx.fillStyle = palette.ink;
+  if (state.createEffect === "Soft Bloom") {
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = palette.accent;
+    ctx.filter = `blur(${Math.max(18, unit * 0.035)}px)`;
+    ctx.fillRect(width * 0.18, height * 0.22, width * 0.64, height * 0.56);
+    ctx.restore();
+  }
+
+  if (state.createEffect === "Film Grain") {
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = "#f8f5ec";
+    const grainStep = Math.max(12, Math.round(unit * 0.018));
+    for (let y = 0; y < height; y += grainStep) {
+      for (let x = (y / grainStep) % 2 ? grainStep / 2 : 0; x < width; x += grainStep) {
+        ctx.fillRect(x, y, 1.5, 1.5);
+      }
+    }
+    ctx.restore();
+  }
+
+  if (state.createEffect === "Vignette") {
+    const vignette = ctx.createRadialGradient(width / 2, height / 2, unit * 0.15, width / 2, height / 2, Math.max(width, height) * 0.72);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.72)");
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  if (theme === "Dark Vintage" || theme === "Gothic Newspaper") {
+    ctx.save();
+    ctx.globalAlpha = 0.07;
+    ctx.strokeStyle = "#f8f5ec";
+    ctx.lineWidth = 1;
+    for (let y = inset; y < height - inset; y += Math.max(7, unit * 0.012)) {
+      ctx.beginPath();
+      ctx.moveTo(inset, y);
+      ctx.lineTo(width - inset, y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  if (theme === "Chaotic Scrapbook") {
+    ctx.save();
+    ctx.globalAlpha = 0.14;
+    ctx.fillStyle = palette.accent;
+    ctx.translate(width / 2, height / 2);
+    ctx.rotate(-0.08);
+    ctx.fillRect(-unit * 0.04, -height, unit * 0.08, height * 2);
+    ctx.restore();
+  }
+
+  if (theme === "Cute but Concerning") {
+    [[0.1, 0.15], [0.88, 0.2], [0.14, 0.82], [0.86, 0.78]].forEach(([x, y]) => {
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = palette.accent;
+      ctx.beginPath();
+      ctx.arc(width * x, height * y, unit * 0.014, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  ctx.strokeStyle = isEditorialGradient ? "rgba(5,5,5,0.18)" : "rgba(248,245,236,0.18)";
+  ctx.lineWidth = Math.max(2, unit * 0.0025);
+  ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+
+  ctx.fillStyle = textColor;
   ctx.textAlign = textAlign;
   ctx.textBaseline = "middle";
-  const baseSize = Math.round(Math.min(width * 0.075, height * 0.1));
+  const lengthScale = quote.text.length > 110 ? 0.68 : quote.text.length > 80 ? 0.8 : 1;
+  const baseSize = Math.round(Math.min(width * 0.075, height * 0.1) * lengthScale);
   ctx.font = `${font.weight} ${baseSize}px ${themeFont}`;
   const displayText = uppercase ? quote.text.toUpperCase() : quote.text;
   const words = displayText.split(" ");
@@ -760,20 +941,9 @@ async function buildCardCanvas(formatName) {
     }
   });
   lines.push(line);
-  const lineHeight = baseSize * 1.05;
+  const lineHeight = baseSize * 1.2;
   const startY = textY - ((lines.length - 1) * lineHeight) / 2;
   lines.forEach((text, index) => ctx.fillText(text, textX, startY + index * lineHeight));
-
-  ctx.strokeStyle = palette.accent;
-  ctx.lineWidth = Math.max(5, Math.min(width, height) * 0.006);
-  ctx.beginPath();
-  const waveY = height * 0.77;
-  for (let x = width * 0.3; x <= width * 0.7; x += width * 0.025) {
-    const y = waveY + Math.sin(x / 24) * Math.min(width, height) * 0.008;
-    if (x === width * 0.3) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  }
-  ctx.stroke();
 
   try {
     const logo = await loadImage("./assets/silent-madness-logo.png");
@@ -785,7 +955,7 @@ async function buildCardCanvas(formatName) {
     const logoCtx = logoCanvas.getContext("2d");
     logoCtx.drawImage(logo, 0, 0, logoCanvas.width, logoCanvas.height);
     logoCtx.globalCompositeOperation = "source-in";
-    logoCtx.fillStyle = palette.ink;
+    logoCtx.fillStyle = textColor;
     logoCtx.fillRect(0, 0, logoCanvas.width, logoCanvas.height);
     ctx.drawImage(logoCanvas, (width - logoWidth) / 2, height * 0.83, logoWidth, logoHeight);
   } catch {
@@ -803,6 +973,8 @@ function rememberCardDesign() {
     style: state.createStyle,
     color: state.createColor,
     font: state.createFont,
+    fontColor: state.createFontColor,
+    effect: state.createEffect,
     mood: state.createMood,
     savedAt: new Date().toISOString(),
   }, ...state.savedCardDesigns].slice(0, 20);
@@ -912,6 +1084,21 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  if (target.dataset.createTool) {
+    state.createTool = target.dataset.createTool;
+    saveState();
+    return render();
+  }
+
+  if (target.dataset.reminderDay) {
+    const day = target.dataset.reminderDay;
+    state.reminderDays = state.reminderDays.includes(day)
+      ? state.reminderDays.filter((item) => item !== day)
+      : [...state.reminderDays, day];
+    saveState();
+    return render();
+  }
+
   if (target.dataset.createSource) {
     state.createSource = target.dataset.createSource;
     if (state.createSource === "Today’s Quote") state.createQuoteId = state.currentQuoteId;
@@ -923,6 +1110,12 @@ document.addEventListener("click", async (event) => {
 
   if (target.dataset.createStyle) {
     state.createStyle = target.dataset.createStyle;
+    if (state.createStyle === "Editorial Gradient") {
+      state.createColor = "Hot Pink";
+      state.createFont = "Poster Loud";
+      state.createFontColor = "Auto";
+      state.createEffect = "Clean Matte";
+    }
     saveState();
     return render();
   }
@@ -945,6 +1138,18 @@ document.addEventListener("click", async (event) => {
     return render();
   }
 
+  if (target.dataset.createFontColor) {
+    state.createFontColor = target.dataset.createFontColor;
+    saveState();
+    return render();
+  }
+
+  if (target.dataset.createEffect) {
+    state.createEffect = target.dataset.createEffect;
+    saveState();
+    return render();
+  }
+
   if (target.dataset.createMood) {
     state.createMood = target.dataset.createMood;
     saveState();
@@ -962,16 +1167,30 @@ document.addEventListener("click", async (event) => {
   }
 
   if (action === "save") {
-    if (!state.savedIds.includes(id)) state.savedIds.unshift(id);
-    else state.savedIds = state.savedIds.filter((savedId) => savedId !== id);
+    if (!state.savedIds.includes(id)) {
+      state.savedIds.unshift(id);
+      if (!state.favoriteIds.includes(id)) state.favoriteIds.push(id);
+    } else {
+      state.savedIds = state.savedIds.filter((savedId) => savedId !== id);
+      state.favoriteIds = state.favoriteIds.filter((favoriteId) => favoriteId !== id);
+    }
     saveState();
     render();
     return showToast(state.savedIds.includes(id) ? "Saved to your little museum." : "Removed from saved quotes.");
   }
   if (action === "remove") {
     state.savedIds = state.savedIds.filter((savedId) => savedId !== id);
+    state.favoriteIds = state.favoriteIds.filter((savedId) => savedId !== id);
     saveState();
     return render();
+  }
+  if (action === "favorite") {
+    state.favoriteIds = state.favoriteIds.includes(id)
+      ? state.favoriteIds.filter((favoriteId) => favoriteId !== id)
+      : [...state.favoriteIds, id];
+    saveState();
+    render();
+    return showToast(state.favoriteIds.includes(id) ? "Added to favorites." : "Removed from favorites.");
   }
   if (action === "share") return shareQuote(getQuote(id));
   if (action === "share-preview") return shareQuote(createPreviewQuote());
@@ -999,6 +1218,30 @@ document.addEventListener("click", async (event) => {
     saveState();
     render();
     return showToast(state.reminderEnabled ? `${state.profile.reminder} enabled.` : "Daily reminder paused.");
+  }
+  if (action === "toggle-late-night") {
+    state.lateNightEnabled = !state.lateNightEnabled;
+    saveState();
+    render();
+    return showToast(state.lateNightEnabled ? "Late night mode enabled." : "Late night mode paused.");
+  }
+  if (action === "cycle-reminder-time") {
+    const times = ["07:00", "08:00", "09:30", "12:30", "18:00"];
+    state.reminderTime = times[(times.indexOf(state.reminderTime) + 1) % times.length];
+    saveState();
+    return render();
+  }
+  if (action === "cycle-late-time") {
+    const times = ["21:30", "22:30", "23:30", "00:30"];
+    state.lateNightTime = times[(times.indexOf(state.lateNightTime) + 1) % times.length];
+    saveState();
+    return render();
+  }
+  if (action === "cycle-reminder-vibe") {
+    const vibes = ["Morning Madness", "Dark Motivation", "Soft but Dangerous", "Existential Nonsense"];
+    state.reminderVibe = vibes[(vibes.indexOf(state.reminderVibe) + 1) % vibes.length];
+    saveState();
+    return render();
   }
   if (action === "tiny-task") return showToast("Peace protected. Tiny security team deployed.");
   if (action === "start-trial") {
